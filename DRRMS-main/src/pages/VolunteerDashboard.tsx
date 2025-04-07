@@ -26,14 +26,18 @@ const VolunteerDashboard = () => {
   const [searchLocation, setSearchLocation] = useState('');
   const volunteerId = 2;
 
-  useEffect(() => {
-    fetch('http://localhost:4000/volunteers/requests')
-      .then(res => res.json())
-      .then(data => setRequests(data));
+  const fetchData = async () => {
+    const requestsRes = await fetch('http://localhost:4000/volunteers/requests');
+    const requestsData = await requestsRes.json();
+    setRequests(requestsData);
 
-    fetch('http://localhost:4000/volunteers/resources')
-      .then(res => res.json())
-      .then(data => setResources(data));
+    const resourcesRes = await fetch('http://localhost:4000/volunteers/resources');
+    const resourcesData = await resourcesRes.json();
+    setResources(resourcesData);
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
   const handleAssign = async (requestId: number) => {
@@ -43,15 +47,7 @@ const VolunteerDashboard = () => {
       body: JSON.stringify({ volunteer_id: volunteerId, request_id: requestId }),
     });
     alert('You are assigned to the task!');
-  };
-
-  const handleUpdateStatus = async (requestId: number) => {
-    await fetch('http://localhost:4000/volunteers/update-task', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ request_id: requestId, new_status: 'fulfilled', volunteer_id: volunteerId }),
-    });
-    alert('Task marked as fulfilled!');
+    fetchData();
   };
 
   const filteredResources = resources.filter((r) =>
@@ -69,11 +65,10 @@ const VolunteerDashboard = () => {
             <p><b>Citizen:</b> {r.citizen}</p>
             <p><b>Location:</b> {r.location}</p>
             <p><b>Resource:</b> {r.resource} ({r.quantity_requested})</p>
-            <p><b>Status:</b> {r.status}</p>
+            <p><b>Status:</b> <span className={`status-${r.status}`}>{r.status}</span></p>
             <p><b>Remarks:</b> {r.remarks}</p>
             <div className="card-buttons">
               <button onClick={() => handleAssign(r.request_id)}>Assign</button>
-              <button onClick={() => handleUpdateStatus(r.request_id)}>Mark Fulfilled</button>
             </div>
           </div>
         ))}
