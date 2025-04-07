@@ -1,0 +1,36 @@
+.request-form-container {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .request-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+  }
+  
+  .request-form input {
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+  }
+  
+  .request-form button {
+    padding: 12px;
+    background: #0052cc;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  
+  .request-form button:hover {
+    background: #003f99;
+  }
+  
