@@ -115,3 +115,42 @@ VALUES
   ('Fulfilled request ID 3', 2);
 
 
+CREATE TABLE resource_audit_log (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  resource_id INT,
+  old_name VARCHAR(100),
+  old_quantity INT,
+  new_name VARCHAR(100),
+  new_quantity INT,
+  action_type VARCHAR(10), -- e.g., 'UPDATE'
+  changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+Now create a trigger that fires BEFORE an update on the resources table:
+
+DELIMITER $$
+
+CREATE TRIGGER log_resource_update
+BEFORE UPDATE ON resources
+FOR EACH ROW
+BEGIN
+  INSERT INTO resource_audit_log (
+    resource_id,
+    old_name,
+    old_quantity,
+    new_name,
+    new_quantity,
+    action_type
+  )
+  VALUES (
+    OLD.id,
+    OLD.name,
+    OLD.quantity,
+    NEW.name,
+    NEW.quantity,
+    'UPDATE'
+  );
+END$$
+
+DELIMITER ;
