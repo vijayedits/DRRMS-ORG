@@ -126,21 +126,34 @@ app.post('/volunteers/assign-task', async (req, res) => {
   const { volunteer_id, request_id } = req.body;
 
   try {
-    const [[request]] = await db.query('SELECT * FROM requests WHERE id = ? AND status = "pending"', [request_id]);
+    // Start transaction
+    await db.query('START TRANSACTION');
 
-    if (!request) {
-      return res.status(400).json({ error: 'Request not found or already assigned' });
-    }
+    // 1. Update request status
+    await db.query(
+      'UPDATE requests SET status = "approved" WHERE id = ? AND status = "pending"',
+      [request_id]
+    );
 
-    await db.query('UPDATE requests SET status = "approved" WHERE id = ?', [request_id]);
+    // 2. Create volunteer request record
+    await db.query(
+      'INSERT INTO volunteer_requests (volunteer_id, request_id) VALUES (?, ?)',
+      [volunteer_id, request_id]
+    );
 
-    await db.query('INSERT INTO audit_log (action, performed_by) VALUES (?, ?)', [
-      `Volunteer ${volunteer_id} assigned to request ${request_id}`,
-      volunteer_id
-    ]);
+    // 3. Log the action
+    await db.query(
+      'INSERT INTO audit_log (action, performed_by) VALUES (?, ?)',
+      [`Volunteer ${volunteer_id} assigned to request ${request_id}`, volunteer_id]
+    );
+
+    // Commit transaction
+    await db.query('COMMIT');
 
     res.json({ success: true, message: 'Task assigned successfully' });
   } catch (err) {
+    // Rollback on error
+    await db.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Failed to assign task' });
   }
@@ -208,21 +221,7 @@ app.get('/admin/requests', async (req, res) => {
   }
 });
 
-// Create a Request
-app.post('/requests', async (req, res) => {
-  const { user_id, resource_id, quantity_requested, location_id, remarks } = req.body;
 
-  try {
-    await db.query(
-      'INSERT INTO requests (user_id, resource_id, quantity_requested, location_id, status, remarks) VALUES (?, ?, ?, ?, "pending", ?)',
-      [user_id, resource_id, quantity_requested, location_id, remarks || null]
-    );
-    res.status(201).json({ message: 'Request submitted successfully' });
-  } catch (err) {
-    console.error('Error creating request:', err);
-    res.status(500).json({ error: 'Failed to create request' });
-  }
-});
 
 // Fetch My Requests
 app.get('/my-requests', async (req, res) => {
@@ -331,7 +330,11 @@ app.post('/requests', async (req, res) => {
 
 app.get('/resources', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM resources');
+    const [rows] = await db.query(`
+      SELECT r.*, l.name AS location_name 
+      FROM resources r
+      LEFT JOIN locations l ON r.location_id = l.id
+    `);
     res.json(rows);
   } catch (err) {
     console.error('Database error:', err);
@@ -388,6 +391,79 @@ app.get('/shelters', async (req, res) => {
   }
 });
 
+app.get('/volunteers/tasks', async (req, res) => {
+  const  volunteer_id  = req.query.volunteer_id;
+
+  try {
+    const [tasks] = await db.query(`
+      SELECT vr.id, vr.request_id, vr.status, vr.assigned_at, vr.completed_at,
+             r.user_id AS citizen_id, u.username AS citizen,
+             res.name AS resource, r.quantity_requested,
+             l.name AS location, r.remarks
+      FROM volunteer_requests vr
+      JOIN requests r ON vr.request_id = r.id
+      JOIN users u ON r.user_id = u.id
+      JOIN resources res ON r.resource_id = res.id
+      JOIN locations l ON r.location_id = l.id
+      WHERE vr.volunteer_id = ?
+    `, [volunteer_id]);
+
+    res.json(tasks);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch tasks' });
+  }
+});
+app.post('/volunteers/complete-task', async (req, res) => {
+  const { request_id, volunteer_id } = req.body;
+
+  try {
+    // Start transaction
+    await db.query('START TRANSACTION');
+
+    // 1. Update volunteer request status
+    await db.query(
+      'UPDATE volunteer_requests SET status = "completed", completed_at = CURRENT_TIMESTAMP WHERE request_id = ? AND volunteer_id = ?',
+      [request_id, volunteer_id]
+    );
+
+    // 2. Update main request status
+    await db.query(
+      'UPDATE requests SET status = "completed" WHERE id = ?',
+      [request_id]
+    );
+
+    // 3. Log the action
+    await db.query(
+      'INSERT INTO audit_log (action, performed_by) VALUES (?, ?)',
+      [`Volunteer ${volunteer_id} completed request ${request_id}`, volunteer_id]
+    );
+
+    // Commit transaction
+    await db.query('COMMIT');
+
+    res.json({ success: true, message: 'Task marked as completed. Waiting for admin verification.' });
+  } catch (err) {
+    // Rollback on error
+    await db.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to complete task' });
+  }
+});
+
+// Get weather alerts
+app.get('/weather-alerts', async (req, res) => {
+  try {
+    const [alerts] = await db.query(
+      `SELECT region, message, weather_alert as severity 
+       FROM locations 
+       WHERE weather_alert != 'none'`
+    );
+    res.json(alerts);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch weather alerts' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

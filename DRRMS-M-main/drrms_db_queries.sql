@@ -1,8 +1,7 @@
-
+drop database  drrms_db;
 create database drrms_db;
 
 use drrms_db;
-
 
 CREATE TABLE locations (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -14,7 +13,6 @@ CREATE TABLE locations (
     weather_alert ENUM('none', 'yellow', 'orange', 'red') DEFAULT 'none',
     last_weather_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
 
 
 CREATE TABLE shelters (
@@ -114,7 +112,6 @@ VALUES
   ('Updated resource quantities in Chennai', 1),
   ('Fulfilled request ID 3', 2);
 
-
 CREATE TABLE resource_audit_log (
   id INT AUTO_INCREMENT PRIMARY KEY,
   resource_id INT,
@@ -126,8 +123,6 @@ CREATE TABLE resource_audit_log (
   changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-
-Now create a trigger that fires BEFORE an update on the resources table:
 
 DELIMITER $$
 
@@ -154,3 +149,55 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+CREATE TABLE volunteer_requests (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    volunteer_id INT ,
+    request_id INT NOT NULL,
+    status ENUM('assigned', 'in_progress', 'completed', 'verified') DEFAULT 'assigned',
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP NULL,
+    FOREIGN KEY (volunteer_id) REFERENCES users(id),
+    FOREIGN KEY (request_id) REFERENCES requests(id),
+    UNIQUE KEY ( request_id)
+);
+
+DELIMITER $$
+
+-- Trigger when a request is assigned to volunteer
+CREATE TRIGGER after_request_assigned
+AFTER UPDATE ON requests
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 'approved' AND OLD.status = 'pending' THEN
+        INSERT INTO volunteer_requests (volunteer_id, request_id, status)
+        VALUES ((SELECT performed_by FROM audit_log WHERE action LIKE CONCAT('%', NEW.id, '%') ORDER BY timestamp DESC LIMIT 1), NEW.id, 'assigned');
+    END IF;
+END$$
+
+-- Trigger when admin verifies a completed task
+CREATE TRIGGER after_task_verified
+AFTER UPDATE ON requests
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 'fulfilled' AND OLD.status = 'completed' THEN
+        UPDATE volunteer_requests 
+        SET status = 'verified', completed_at = CURRENT_TIMESTAMP
+        WHERE request_id = NEW.id;
+    END IF;
+END$$
+
+DELIMITER ;
+
+select * from resources;
+
+select * from users;
+
+
+
+INSERT INTO volunteer_requests (volunteer_id, request_id, status)
+VALUES
+  (3, 1, 'assigned'),
+  (3, 2, 'in_progress'),
+  (3, 3, 'completed');
+
