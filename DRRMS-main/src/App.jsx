@@ -3,9 +3,9 @@ import { Routes, Route } from 'react-router-dom';
 
 import Login from './pages/login';
 import Register from './pages/Register';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminDashboard from './pages/AdminDashboard.jsx';
 import UserDashboard from './pages/UserDashboard.jsx';
-import VolunteerDashboard from './pages/VolunteerDashboard.tsx';
+import VolunteerDashboard from './pages/VolunteerDashboard.jsx';
 import ProfileSettings from './pages/UserDashboardPages/profileSettings.jsx';
 import CreateRequest from './pages/UserDashboardPages/CreateRequest.jsx';
 import FindResources from './pages/UserDashboardPages/FindResources.tsx';
