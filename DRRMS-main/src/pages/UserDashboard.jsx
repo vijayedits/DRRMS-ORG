@@ -1,34 +1,67 @@
 import React from 'react';
-import '../styles/Dashboard.css';
-import MapWithUserLocation from '../components/MapWithUserLocation';
+import '../styles/user.css';
+import { FaHandsHelping, FaListAlt, FaHome, FaBullhorn, FaComments, FaUserCog } from 'react-icons/fa';
+import { useNavigate, useParams } from 'react-router-dom';
 
-const stats = [
-  { label: 'Resources', count: 1280 },
-  { label: 'Requests', count: 87 },
-  { label: 'Shelters', count: 42 },
-  { label: 'Volunteers', count: 509 },
-];
+const AffectedDashboard = () => {
+  // Get userId from the URL params
+  const { userId } = useParams();
+  const navigate = useNavigate();
 
-const Dashboard = () => {
+  const sections = [
+    {
+      icon: <FaHandsHelping />,
+      title: 'Create Request',
+      description: 'Request food, medical aid, rescue, and more.',
+      path: '/create-request'
+    },
+    {
+      icon: <FaListAlt />,
+      title: 'My Requests',
+      description: 'Track the status of your submitted requests.',
+      path: '/my-requests'
+    },
+    {
+      icon: <FaHome />,
+      title: 'Find Resources',
+      description: 'Locate nearby safe shelters with availability.',
+      path: '/find-resources'
+    },
+    {
+      icon: <FaBullhorn />,
+      title: 'Find Shelters',
+      description: 'Locate nearby safe shelters with availability.',
+      path: '/shelters'
+    },
+    {
+      icon: <FaUserCog />,
+      title: 'Profile Settings',
+      description: 'Update your personal information and preferences.',
+      path: `/profiles`
+    }
+    
+   
+  ];
+
   return (
-    <div className="dashboard">
-      <h1>Welcome to DRRMS</h1>
-
+    <div className="dashboard-container">
+      <h1 className="dashboard-title">Disaster Relief Dashboard</h1>
       <div className="dashboard-grid">
-        {stats.map((item, index) => (
-          <div key={index} className="dashboard-card">
-            <h2>{item.count}</h2>
-            <p>{item.label}</p>
+        {sections.map((section, index) => (
+          <div
+            key={index}
+            className="dashboard-card"
+            onClick={() => navigate(section.path)}
+          >
+            <div className="dashboard-icon">{section.icon}</div>
+            <h3>{section.title}</h3>
+            <p className="dashboard-description">{section.description}</p>
+            <button className="dashboard-button">Go</button>
           </div>
         ))}
-      </div>
-
-      <div className="dashboard-map">
-        <h3>Live User Location</h3>
-        <MapWithUserLocation />
       </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default AffectedDashboard;

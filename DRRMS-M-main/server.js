@@ -2,22 +2,19 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const db = require('./db');
-const bcrypt = require('bcrypt')
+const bcrypt = require('bcrypt');
 const app = express();
 const PORT = process.env.PORT || 4000;
-
 
 const corsOptions = {
   origin: "http://localhost:5173", // Frontend URL
   credentials: true,  // Allow credentials
 };
 
-
 app.use(cors(corsOptions));
-
 app.use(express.json());
 
-
+// Get Locations
 app.get('/locations', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM locations');
@@ -28,9 +25,7 @@ app.get('/locations', async (req, res) => {
   }
 });
 
-
-
-
+// Get Users
 app.get('/users', async (req, res) => {
   try {
     const [users] = await db.query('SELECT * FROM users');
@@ -41,6 +36,7 @@ app.get('/users', async (req, res) => {
   }
 });
 
+// User Login
 app.post('/login', async (req, res) => {
   const { email, password, role } = req.body;
 
@@ -72,14 +68,14 @@ app.post('/login', async (req, res) => {
     res.status(500).json({ error: 'Internal server error.' });
   }
 });
+
+// User Registration
 app.post('/register', async (req, res) => {
   try {
     const { username, password, email, role, contact_number } = req.body;
 
-   
     console.log(req.body);
 
-  
     const [result] = await db.query(
       'INSERT INTO users (username, password, email, role, contact_number) VALUES (?, ?, ?, ?, ?)',
       [username, password, email, role, contact_number || null]
@@ -92,6 +88,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
+// Get Volunteer Requests
 app.get('/volunteers/requests', async (req, res) => {
   try {
     const [requests] = await db.query(`
@@ -110,7 +107,7 @@ app.get('/volunteers/requests', async (req, res) => {
   }
 });
 
-
+// Get Volunteer Resources
 app.get('/volunteers/resources', async (req, res) => {
   try {
     const [resources] = await db.query(`
@@ -124,18 +121,17 @@ app.get('/volunteers/resources', async (req, res) => {
   }
 });
 
+// Assign Task to Volunteer
 app.post('/volunteers/assign-task', async (req, res) => {
   const { volunteer_id, request_id } = req.body;
 
   try {
-   
     const [[request]] = await db.query('SELECT * FROM requests WHERE id = ? AND status = "pending"', [request_id]);
 
     if (!request) {
       return res.status(400).json({ error: 'Request not found or already assigned' });
     }
 
-    
     await db.query('UPDATE requests SET status = "approved" WHERE id = ?', [request_id]);
 
     await db.query('INSERT INTO audit_log (action, performed_by) VALUES (?, ?)', [
@@ -150,7 +146,7 @@ app.post('/volunteers/assign-task', async (req, res) => {
   }
 });
 
-
+// Update Volunteer Task
 app.post('/volunteers/update-task', async (req, res) => {
   const { request_id, new_status, volunteer_id } = req.body;
 
@@ -162,7 +158,6 @@ app.post('/volunteers/update-task', async (req, res) => {
 
     await db.query('UPDATE requests SET status = ? WHERE id = ?', [new_status, request_id]);
 
-  
     await db.query('INSERT INTO audit_log (action, performed_by) VALUES (?, ?)', [
       `Volunteer ${volunteer_id} updated request ${request_id} to ${new_status}`,
       volunteer_id
@@ -174,6 +169,7 @@ app.post('/volunteers/update-task', async (req, res) => {
   }
 });
 
+// Get Locations for Volunteers
 app.get('/volunteers/locations', async (req, res) => {
   try {
     const [locations] = await db.query('SELECT * FROM locations');
@@ -183,6 +179,7 @@ app.get('/volunteers/locations', async (req, res) => {
   }
 });
 
+// Admin Get Requests
 app.get('/admin/requests', async (req, res) => {
   try {
     const [requests] = await db.query(`
@@ -211,7 +208,187 @@ app.get('/admin/requests', async (req, res) => {
   }
 });
 
+// Create a Request
+app.post('/requests', async (req, res) => {
+  const { user_id, resource_id, quantity_requested, location_id, remarks } = req.body;
+
+  try {
+    await db.query(
+      'INSERT INTO requests (user_id, resource_id, quantity_requested, location_id, status, remarks) VALUES (?, ?, ?, ?, "pending", ?)',
+      [user_id, resource_id, quantity_requested, location_id, remarks || null]
+    );
+    res.status(201).json({ message: 'Request submitted successfully' });
+  } catch (err) {
+    console.error('Error creating request:', err);
+    res.status(500).json({ error: 'Failed to create request' });
+  }
+});
+
+// Fetch My Requests
+app.get('/my-requests', async (req, res) => {
+  const { user_id } = req.query;
+
+  try {
+    const [rows] = await db.query(
+      `SELECT r.id, r.status, r.quantity_requested, r.remarks, res.name AS resource, l.name AS location
+       FROM requests r
+       JOIN resources res ON r.resource_id = res.id
+       JOIN locations l ON r.location_id = l.id
+       WHERE r.user_id = ?`,
+      [user_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching my requests:', err);
+    res.status(500).json({ error: 'Failed to fetch your requests' });
+  }
+});
+
+
+
+// Get Alerts
+app.get('/alerts', async (req, res) => {
+  try {
+    const [alerts] = await db.query('SELECT id, message, severity, timestamp FROM alerts ORDER BY timestamp DESC');
+    res.json(alerts);
+  } catch (err) {
+    console.error('Error fetching alerts:', err);
+    res.status(500).json({ error: 'Failed to fetch alerts' });
+  }
+});
+
+// Profile Routes
+
+// Get Profile
+app.get('/profile/:id', async (req, res) => {
+  const userId = req.params.id;
+  try {
+    // Query database for user data
+    const [users] = await db.query('SELECT username, email, contact_number FROM users WHERE id = ?', [userId]);
+
+    // If no user is found, return 404
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Send the first user (since it's assumed that id is unique)
+    res.json(users[0]);
+  } catch (err) {
+    console.error('Error fetching profile:', err);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+
+// Update Profile
+app.put('/profile/:id', async (req, res) => {
+  const userId = req.params.id;
+  const { username, email, contact_number } = req.body;
+
+  try {
+    await db.query(
+      'UPDATE users SET username = ?, email = ?, contact_number = ? WHERE id = ?',
+      [username, email, contact_number, userId]
+    );
+    res.json({ message: 'Profile updated successfully' });
+  } catch (err) {
+    console.error('Error updating profile:', err);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+
+app.post('/requests', async (req, res) => {
+  const { user_id, resource_name, location_name, quantity_requested, remarks } = req.body;
+
+  if (!user_id || !resource_name || !location_name || !quantity_requested) {
+    return res.status(400).json({ error: 'All fields are required.' });
+  }
+
+  try {
+    // Fetch resource_id
+    const [resourceRows] = await pool.query('SELECT id FROM resources WHERE name = ?', [resource_name]);
+    if (resourceRows.length === 0) return res.status(400).json({ error: 'Resource not found.' });
+    const resource_id = resourceRows[0].id;
+
+    // Fetch location_id
+    const [locationRows] = await pool.query('SELECT id FROM locations WHERE name = ?', [location_name]);
+    if (locationRows.length === 0) return res.status(400).json({ error: 'Location not found.' });
+    const location_id = locationRows[0].id;
+
+    // Now insert into requests
+    await pool.query(
+      'INSERT INTO requests (user_id, resource_id, quantity_requested, location_id, status, remarks) VALUES (?, ?, ?, ?, ?, ?)',
+      [user_id, resource_id, quantity_requested, location_id, 'pending', remarks]
+    );
+
+    res.status(201).json({ message: 'Request submitted successfully.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Database error.' });
+  }
+});
+
+app.get('/resources', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM resources');
+    res.json(rows);
+  } catch (err) {
+    console.error('Database error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// Endpoint to get requests made by a specific user
+app.get('/my-requests', async (req, res) => {
+  const { user_id } = req.query;
+
+  if (!user_id) return res.status(400).json({ error: "User ID is required." });
+
+  try {
+    const [rows] = await db.query(
+      `SELECT r.id, r.status, r.quantity_requested, r.remarks, res.name AS resource, l.name AS location
+       FROM requests r
+       JOIN resources res ON r.resource_id = res.id
+       JOIN locations l ON r.location_id = l.id
+       WHERE r.user_id = ?`,
+      [user_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching my requests:', err);
+    res.status(500).json({ error: 'Failed to fetch your requests' });
+  }
+});
+
+/*app.get('/shelters', async (req, res) => {
+  try {
+    // Ensure the query is correct and retrieve data from the database
+    const [rows] = await db.query(`
+      SELECT S.name, l.name AS Location, S.capacity, S.current_occupancy, S.contact_number
+      FROM shelters S
+      JOIN locations l ON S.location_id = l.id;
+    `);
+
+    // Send the data as JSON
+    res.json(rows);
+  } catch (err) {
+    // Improved error handling with a more descriptive error message
+    console.error('Database error:', err.message);  // Log just the error message for clarity
+    res.status(500).json({ error: 'Internal Server Error: Unable to fetch shelters data.' });
+  }
+});*/
+app.get('/shelters', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT S.name, l.name AS Location, S.capacity, S.current_occupancy, S.contact_number FROM shelters S JOIN locations l ON S.location_id = l.id;');
+    res.json(rows);
+  } catch (err) {
+    console.error('Database error:', err);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

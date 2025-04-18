@@ -29,25 +29,25 @@ function Login() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password, role }),
-        credentials: "include", 
+        credentials: "include",
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        
         throw new Error(data.error || "Login failed");
       }
 
-      localStorage.setItem("user", JSON.stringify(data.user));
-      localStorage.setItem("token", data.token || "dummy-token");
+      // Store user and token in localStorage
+      localStorage.setItem("user", JSON.stringify(data.user));  // Storing the user object
+      localStorage.setItem("token", data.token || "dummy-token");  // Storing the token
 
-      
       const routes = {
         volunteer: "/volunteer",
         admin: "/admin",
-        citizen: "/citizen",
+        citizen: "/citizen", // Directly navigate to /citizen without user ID
       };
+
       navigate(routes[role] || "/");
 
     } catch (err) {
@@ -55,17 +55,16 @@ function Login() {
       console.error("Login error:", err);
       setError(err.message || "Login failed. Please try again.");
     } finally {
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   };
 
   return (
-  
     <div className="login-container">
       <div className="login-image-section">
         <div className="welcome-text">
           <h1>Disaster Relief Resource Management</h1>
-          <p>Helping you connect with relief during crisis</p>
+          <p>Helping you connect with relief during a crisis</p>
         </div>
       </div>
 
@@ -73,15 +72,17 @@ function Login() {
         <form className="login-card" onSubmit={handleLogin}>
           <h2>Login</h2>
 
-        
+          {/* Error message display */}
           {error && (
             <div className="error-message">
               {error}
             </div>
           )}
 
-
+          {/* User role selection */}
+          <label htmlFor="role-select">Role:</label>
           <select
+            id="role-select"
             value={role}
             onChange={(e) => setRole(e.target.value)}
             required
@@ -91,7 +92,7 @@ function Login() {
             <option value="admin">Admin</option>
           </select>
 
-     
+          {/* Email input */}
           <input
             type="email"
             placeholder="Email"
@@ -100,6 +101,7 @@ function Login() {
             required
           />
 
+          {/* Password input */}
           <input
             type="password"
             placeholder="Password"
@@ -108,6 +110,7 @@ function Login() {
             required
           />
 
+          {/* Submit button */}
           <button 
             type="submit" 
             className="login-button"
@@ -116,13 +119,13 @@ function Login() {
             {isLoading ? "Logging in..." : "Login"}
           </button>
 
+          {/* Register link */}
           <p className="link-text">
             New user? <a href="/register">Register here</a>
           </p>
         </form>
       </div>
     </div>
-    
   );
 }
 
