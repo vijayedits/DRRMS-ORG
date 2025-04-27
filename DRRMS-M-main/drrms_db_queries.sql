@@ -62,7 +62,7 @@ CREATE TABLE requests (
 
 CREATE TABLE audit_log (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    action VARCHAR(255) NOT NULL,
+    action TEXT NOT NULL,
     performed_by INT,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (performed_by) REFERENCES users(id)
@@ -215,4 +215,31 @@ LEFT JOIN users vu ON vu.id = vr.volunteer_id;
 
 SELECT * FROM requests;
 
+select * from resource_audit_log;
+
+DROP TRIGGER IF EXISTS log_fulfilled_to_completed;
+DELIMITER $$
+
+CREATE TRIGGER log_fulfilled_to_completed
+AFTER UPDATE ON requests
+FOR EACH ROW
+BEGIN
+    IF OLD.status = 'fulfilled' AND NEW.status = 'completed' THEN
+        INSERT INTO audit_log (action, performed_by)
+        VALUES (
+            CONCAT('Status reverted from fulfilled to completed for request ID ', NEW.id),
+            1
+        );
+    END IF;
+END$$
+
+DELIMITER ;
+
+INSERT INTO audit_log (action, performed_by)
+VALUES 
+('Manually inserted log 1 - resource updated', 1),
+('Manually inserted log 2 - request assigned', 2),
+('Manually inserted log 3 - shelter capacity updated', 1),
+('Manually inserted log 4 - weather alert changed', 2),
+('Manually inserted log 5 - citizen request approved', 1);
 

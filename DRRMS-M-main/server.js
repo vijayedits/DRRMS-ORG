@@ -468,6 +468,15 @@ app.put('/requests',async (req,res)=> {
   }
 })
 
+
+  app.get('/audit_log',async (req,res)=>{
+    try{
+      const [daa]= await db.query(`select * from audit_log`) ;
+      res.json(daa);
+    }catch(err){
+      res.json(err);
+    }
+  })
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

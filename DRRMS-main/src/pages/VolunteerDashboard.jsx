@@ -11,7 +11,9 @@ const VolunteerDashboard = () => {
   const [activeTab, setActiveTab] = useState('allRequests');
   const [weatherAlerts, setWeatherAlerts] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const volunteerId = 3; // Example volunteer ID
+  const user = JSON.parse(localStorage.getItem("user"));
+  const volunteerId = user?.id;
+
 
   const fetchData = async () => {
     setIsLoading(true);

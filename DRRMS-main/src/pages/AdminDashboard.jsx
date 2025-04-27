@@ -313,12 +313,6 @@ function AdminDashboard() {
             >
               Audit Logs
             </li>
-            <li 
-              className={activeTab === 'resourceLogs' ? 'active' : ''}
-              onClick={() => setActiveTab('resourceLogs')}
-            >
-              Resource Audit Logs
-            </li>
           </ul>
         </nav>
 
