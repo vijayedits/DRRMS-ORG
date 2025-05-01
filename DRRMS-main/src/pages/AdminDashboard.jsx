@@ -65,13 +65,14 @@ function AdminDashboard() {
   };
 
   const handleVerifyRequest = async (requestId) => {
+    console.log(requestId);
     try {
-      const response = await fetch(`http://localhost:4000/requests/${requestId}`, {
+      const response = await fetch(`http://localhost:4000/requests`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: 'fulfilled' }),
+        body: JSON.stringify({ status: 'fulfilled', Id: requestId}),
       });
 
       if (!response.ok) {
@@ -199,7 +200,7 @@ function AdminDashboard() {
                   <td>{request.volunteer || 'None'}</td>
                   <td>{request.remarks}</td>
                   <td>
-                    {request.status === 'approved' && (
+                    {request.status === 'completed' && (
                       <button 
                         onClick={() => handleVerifyRequest(request.request_id)}
                         className="verify-btn"
@@ -311,12 +312,6 @@ function AdminDashboard() {
               onClick={() => setActiveTab('audit')}
             >
               Audit Logs
-            </li>
-            <li 
-              className={activeTab === 'resourceLogs' ? 'active' : ''}
-              onClick={() => setActiveTab('resourceLogs')}
-            >
-              Resource Audit Logs
             </li>
           </ul>
         </nav>
