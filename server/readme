@@ -18,3 +18,4 @@ S-2:
 8) Then you will see the server running in the terminal with the port number 3000;
 9) Then open the postman and create a new request by selecting POST method or just open browser and type the specfic url to get the details of locations(just verifying like everything works fine);
 
+updated readme
